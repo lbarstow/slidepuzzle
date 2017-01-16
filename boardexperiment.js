@@ -16,6 +16,7 @@ function init(){
   _img = new Image();
   _img.addEventListener('load', onImage, false);
   _img.src = "bench.jpg";
+
 }
 function onImage(e){
   _pieceWidth = Math.floor(_img.width / 3);
@@ -34,6 +35,9 @@ function setCanvas(){
   _canvas.style.border = "1px solid black";
 }
 function initPuzzle(){
+  if (document.contains(document.getElementById("refreshBtn"))){
+            document.getElementById("refreshBtn").remove();
+          }
   _pieces = [];
   _mouse = {x:0, y:0};
   _currentPiece = null;
@@ -62,10 +66,13 @@ function buildPieces(){
     piece = {}
     piece.sx = xPos;
     piece.sy = yPos;
+    piece.xPos = xPos;
+    piece.yPos = yPos;
     if(i<8){
       piece.empty = false;
     }else{
       piece.empty = true;
+      _currentOpening = piece;
     }
     _pieces.push(piece);
     xPos +=_pieceWidth;
@@ -74,8 +81,12 @@ function buildPieces(){
       yPos += _pieceHeight;
     }
   }
-  document.onmousedown = shufflePuzzle;
+  //document.onmousedown = shufflePuzzle;
+  //change listener
+  document.onmousedown = coolShuffle;
+  console.log("finished buildPieces");
 }
+/*
 function shufflePuzzle(){
   _pieces = shuffleArray(_pieces);
   _stage.clearRect(0,0,_puzzleWidth , _puzzleHeight);
@@ -104,11 +115,50 @@ function shufflePuzzle(){
     }
   }
   document.onmousedown = onPuzzleClick;
+  var refresh = document.createElement("input");
+  refresh.setAttribute('type','button');
+  refresh.setAttribute('id','refreshBtn');
+  refresh.setAttribute('value','Reshuffle');
+  document.body.appendChild(refresh);
+  refresh.onclick = initPuzzle;
 }
+*/
+function coolShuffle(){
+  document.onmousedown = null;
+  console.log("coolShuffle");
+  drawPuzzle();
+
+  setTimeout(createTitle("Shuffling"), 500);
+
+  /*for(i =0; i <25; i++){
+    setTimeout(autoMove, 500);
+  }*/
+  var count = 0;
+  while(count <25){
+    var moved = autoMove();
+    if(moved){
+      count+=1;
+      setTimeout(drawPuzzle, 3000);
+    }
+  }
+  document.onmousedown = onPuzzleClick;
+  var refresh = document.createElement("input");
+  refresh.setAttribute('type','button');
+  refresh.setAttribute('id','refreshBtn');
+  refresh.setAttribute('value','Reshuffle');
+  document.body.appendChild(refresh);
+  refresh.onclick = initPuzzle;
+}
+//just so it can be used in set timeout
+function addOne(num){
+  return num++;
+}
+/*
 function shuffleArray(o){
   for(var j, x, i=o.length; i; j = parseInt(Math.random() * i ), x = o[--i], o[i] = o[j], o[j] = x);
   return o;
 }
+*/
 function onPuzzleClick(e){
   if(e.layerX || e.layerX ==0){
     _mouse.x = e.layerX - _canvas.offsetLeft;
@@ -124,6 +174,7 @@ function onPuzzleClick(e){
     //need to check if clicked an adjacent piece
     if(isAdjacent(_currentPiece.xPos, _currentPiece.yPos)){
         swap();
+        resetPuzzleAndCheckWin();
     }
   }
 }
@@ -150,7 +201,7 @@ function isAdjacent(x, y){
     return false;
   }
 }
-//laura's expiement
+
 function swap(){
   //just swaps coordinates of two variables
   //modifies coordinates of two pieces in list
@@ -170,7 +221,6 @@ function swap(){
       _currentOpening = piece;
     }
   }
-  resetPuzzleAndCheckWin();
 }
 
 function resetPuzzleAndCheckWin(){
@@ -192,10 +242,83 @@ function resetPuzzleAndCheckWin(){
       gameWin = false;
   }
 }
-if(gameWin){
-  createTitle("You Won! Click to Play Again.");
-  setTimeout(gameOver, 500);
+  if(gameWin){
+    createTitle("You Won! Click to Play Again.");
+    setTimeout(gameOver, 500);
+  }
 }
+function drawPuzzle(){
+  _stage.clearRect(0,0,_puzzleWidth, _puzzleHeight);
+  var i;
+  var piece;
+  for(i=0; i< _pieces.length; i++){
+    piece = _pieces[i];
+    //draws all pieces, does fill rect if is empty square
+    if(piece.empty ==false){
+      _stage.drawImage(_img, piece.sx, piece.sy, _pieceWidth, _pieceHeight, piece.xPos, piece.yPos, _pieceWidth, _pieceHeight);
+    }else{
+      _stage.fillRect(piece.xPos,piece.yPos,_pieceWidth, _pieceHeight);
+    }
+
+    _stage.strokeRect(piece.xPos, piece.yPos, _pieceWidth,_pieceHeight);
+  }
+}
+//moves one randomlly selected pieve
+function autoMove(){
+  //randomly choose one of four choices
+  var choice = getRandomInt(1, 5);
+  //console.log("choice "+ choice);
+  var randX;
+  var randY;
+  if(choice ==1){
+    //top
+    randX = _currentOpening.xPos;
+    randY = _currentOpening.yPos - _pieceHeight;
+  }else if (choice == 2) {
+    //right
+    randX = _currentOpening.xPos + _pieceWidth;
+    randY = _currentOpening.yPos;
+
+  }else if (choice == 3) {
+    //bottom
+    randX = _currentOpening.xPos;
+    randY = _currentOpening.yPos + _pieceHeight;
+  }else if (choice ==4) {
+    //left
+    randX = _currentOpening.xPos - _pieceWidth;
+    randY = _currentOpening.yPos;
+  }
+  _currentPiece = checkPieceChosen(randX, randY);
+  if(_currentPiece != null){
+    swap();
+    return true;
+    //drawPuzzle();
+  }
+  return false;
+}
+
+//taken from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
+// Returns a random integer between min (included) and max (excluded)
+// Using Math.round() will give you a non-uniform distribution!
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min)) + min;
+}
+//modify this
+//will take in x and y and see if matches the x,y coordinates of any of the pieces
+//will return matching piece
+//does not perform any adjacency checks
+function checkPieceChosen(x, y){
+  var i;
+  var piece;
+  for(i = 0; i<_pieces.length; i++){
+    piece = _pieces[i];
+    if((piece.xPos == x) && (piece.yPos ==y)){
+      return piece;
+    }
+  }
+  return null;
 }
 function gameOver(){
 document.onmousedown = initPuzzle;
